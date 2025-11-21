@@ -178,7 +178,7 @@ if (isset($obj->delete_user_id)) {
     $password = $obj->password;
 
     if (!empty($phone) && !empty($password)) {
-        $loginCheck = $conn->query("SELECT `id`, `name`, `role`, `img` FROM `user` WHERE `phone`='$phone' AND `password`='$password' AND `deleted_at`=0");
+        $loginCheck = $conn->query("SELECT * FROM `user` WHERE `phone`='$phone' AND `password`='$password' AND `deleted_at`=0");
         if ($loginCheck->num_rows > 0) {
             $user = $loginCheck->fetch_assoc();
             $output["head"]["code"] = 200;
