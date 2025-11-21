@@ -88,25 +88,25 @@ function customerExist($customer)
 }
 
 // <<<<<<<<<<===================== Function for get the username =====================>>>>>>>>>>
-function getUserName($user)
-{
-    global $conn;
-    $result = "";
+// function getUserName($user)
+// {
+//     global $conn;
+//     $result = "";
 
-    $checkUser = $conn->query("SELECT `name` FROM `user` WHERE `id`='$user'");
-    if ($checkUser->num_rows > 0) {
-        if ($userData = $checkUser->fetch_assoc()) {
-            $result = $userData['name'];
-        }
-    }else{
-        $checkUser = $conn->query("SELECT `staff_name` FROM `staff` WHERE `id`='$user'");
-         if ($userData = $checkUser->fetch_assoc()) {
-            $result = $userData['staff_name'];
-        }
-    }
+//     $checkUser = $conn->query("SELECT `name` FROM `user` WHERE `id`='$user'");
+//     if ($checkUser->num_rows > 0) {
+//         if ($userData = $checkUser->fetch_assoc()) {
+//             $result = $userData['name'];
+//         }
+//     } else {
+//         $checkUser = $conn->query("SELECT `staff_name` FROM `staff` WHERE `id`='$user'");
+//         if ($userData = $checkUser->fetch_assoc()) {
+//             $result = $userData['staff_name'];
+//         }
+//     }
 
-    return $result;
-}
+//     return $result;
+// }
 
 function convertUniqueName($value)
 {
@@ -175,7 +175,6 @@ function pngImageToWebP($data, $file_path)
         imagedestroy($sourceImage);
 
         return $returnFilename;
-
     } catch (Exception $e) {
         error_log('Error: ' . $e->getMessage());
         return false;
@@ -214,47 +213,38 @@ function isBase64ImageValid($base64Image)
 }
 
 
-function ImageRemove($string,$id){
+function ImageRemove($string, $id)
+{
     global $conn;
     $status = "No Data Updated";
-    if($string == "user")
-    {
-        $sql_user ="UPDATE `user` SET `img`=null WHERE `user_id` ='$id' ";
-        if ($conn->query($sql_user) === TRUE){
-             $status="User Image Removed Successfully";
+    if ($string == "user") {
+        $sql_user = "UPDATE `user` SET `img`=null WHERE `user_id` ='$id' ";
+        if ($conn->query($sql_user) === TRUE) {
+            $status = "User Image Removed Successfully";
         } else {
-             $status="User Image Not Removed !";
+            $status = "User Image Not Removed !";
         }
-        
-    }
-    else if($string == "customer")
-    {
+    } else if ($string == "customer") {
         $sql_customer = "UPDATE `customer` SET `img`=null WHERE `customer_id`='$id' ";
         if ($conn->query($sql_customer) === TRUE) {
             $status = "customer Image Removed Successfully";
         } else {
             $status = "customer Image Not Removed !";
         }
-      
-    }
-    else if($string == "company")
-    {
+    } else if ($string == "company") {
         $sql_company = "UPDATE `company` SET  `img`=null WHERE `id`='$id' ";
         if ($conn->query($sql_company) === TRUE) {
             $status = "company Image Removed Successfully";
         } else {
             $status = "company Image Not Removed !";
         }
-    }
-    else if($string == "customer_proof"){
-         $sql_products = " UPDATE `customer` SET `proof_img`=null WHERE `customer_id`='$id' ";
+    } else if ($string == "customer_proof") {
+        $sql_products = " UPDATE `customer` SET `proof_img`=null WHERE `customer_id`='$id' ";
         if ($conn->query($sql_products) === TRUE) {
             $status = "Customer Proff Image Removed Successfully";
         } else {
             $status = "Customer Proff Image Not Removed !";
         }
-       
-
     }
     return $status;
 }
@@ -265,12 +255,44 @@ function uniqueID($prefix_name, $auto_increment_id)
     $timestamp = date('Y-m-d H:i:s');
     $encryptId = $prefix_name . "_" . $timestamp . "_" . $auto_increment_id;
 
-    $hashid =md5($encryptId);
+    $hashid = md5($encryptId);
 
     return $hashid;
-
 }
-function generateCustomerNo($id) {
+function generateCustomerNo($id)
+{
     // Return the customer number with 'CNO' prefix
     return 'CNO' . $id;
+}
+
+
+
+function logCustomerHistory($customer_id, $customer_no, $action_type, $old_value = null, $new_value = null, $remarks = null, $created_by_id = null, $created_by_name = null)
+{
+    global $conn, $timestamp;
+    $old_value = $old_value ? json_encode($old_value, JSON_NUMERIC_CHECK) : null;
+    $new_value = $new_value ? json_encode($new_value, JSON_NUMERIC_CHECK) : null;
+    $sql = "INSERT INTO `customer_history` (`customer_id`, `customer_no`, `action_type`, `old_value`, `new_value`, `remarks`, `created_by_id`, `created_by_name`, `created_at`) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("sssssssss", $customer_id, $customer_no, $action_type, $old_value, $new_value, $remarks, $created_by_id, $created_by_name, $timestamp);
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
+function getUserName($user)
+{
+    global $conn;
+    $result = "";
+
+    // Check in the `user` table first
+    $checkUser = $conn->query("SELECT `name` FROM `user` WHERE `user_id`='$user' LIMIT 1");
+    if ($checkUser && $checkUser->num_rows > 0) {
+        $userData = $checkUser->fetch_assoc();
+        $result = $userData['name'];
+    }
+
+    return $result;
 }

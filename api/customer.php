@@ -17,6 +17,8 @@ $output = array();
 date_default_timezone_set('Asia/Calcutta');
 $timestamp = date('Y-m-d H:i:s');
 
+
+
 if (isset($obj->search_text)) {
     // <<<<<<<<<<===================== This is to list customers =====================>>>>>>>>>>
     $search_text = $obj->search_text;
@@ -52,19 +54,28 @@ if (isset($obj->search_text)) {
         $output["head"]["msg"] = "Customer Details Not Found";
         $output["body"]["customer"] = [];
     }
-} else if (isset($obj->name) && isset($obj->phone)) {
+} else if (isset($obj->name) && isset($obj->phone) && isset($obj->current_user_id)) {
     // <<<<<<<<<<===================== This is to Create and Edit customers =====================>>>>>>>>>>
     $name = $obj->name;
     $phone = $obj->phone;
+    $current_user_id = $obj->current_user_id;
+    $current_user_name = getUserName($current_user_id);
     $address = isset($obj->address) ? $obj->address : "";
     $place = isset($obj->place) ? $obj->place : "";
     $img = isset($obj->img) ? $obj->img : "";
     $proof_img = isset($obj->proof_img) ? $obj->proof_img : "";
 
-    if (!empty($name) && !empty($phone)) {
+    if (!empty($name) && !empty($phone) && !empty($current_user_name)) {
         if (isset($obj->edit_customer_id)) {
             $edit_id = $obj->edit_customer_id;
             if ($edit_id) {
+                // Fetch old customer data for logging
+                $checkOld = $conn->query("SELECT `id`, `customer_id`, `customer_no`, `name`, `phone`, `address`, `place`, `img`, `proof_img` FROM `customer` WHERE `customer_id`='$edit_id' AND `deleted_at`=0 LIMIT 1");
+                $old_customer = null;
+                if ($checkOld && $checkOld->num_rows > 0) {
+                    $old_customer = $checkOld->fetch_assoc();
+                }
+
                 $updateCustomer = "";
                 if (!empty($img) && !empty($proof_img)) {
                     $outputFilePathcustomer = "../uploads/customer/";
@@ -80,6 +91,17 @@ if (isset($obj->search_text)) {
                                    WHERE `customer_id`='$edit_id'";
                 }
                 if ($conn->query($updateCustomer)) {
+                    // Fetch or construct new customer data for logging
+                    $checkNew = $conn->query("SELECT `id`, `customer_id`, `customer_no`, `name`, `phone`, `address`, `place`, `img`, `proof_img` FROM `customer` WHERE `customer_id`='$edit_id' LIMIT 1");
+                    $new_customer = null;
+                    if ($checkNew && $checkNew->num_rows > 0) {
+                        $new_customer = $checkNew->fetch_assoc();
+                    }
+                    // Log history if old data exists
+                    if ($old_customer && $new_customer) {
+                        $remarks = 'Customer updated by ' . $current_user_name;
+                        logCustomerHistory($edit_id, $new_customer['customer_no'], 'customer_update', $old_customer, $new_customer, $remarks, $current_user_id, $current_user_name);
+                    }
 
                     $output["head"]["code"] = 200;
                     $output["head"]["msg"] = "Successfully Customer Details Updated";
@@ -116,6 +138,18 @@ if (isset($obj->search_text)) {
                     $update = "UPDATE `customer` SET `customer_id`='$enid',`customer_no`='$customer_no' WHERE `id` = $id";
                     $conn->query($update);
 
+                    // Fetch new customer data for logging
+                    $checkNew = $conn->query("SELECT `id`, `customer_id`, `customer_no`, `name`, `phone`, `address`, `place`, `img`, `proof_img` FROM `customer` WHERE `customer_id`='$enid' LIMIT 1");
+                    $new_customer = null;
+                    if ($checkNew && $checkNew->num_rows > 0) {
+                        $new_customer = $checkNew->fetch_assoc();
+                    }
+                    // Log history
+                    if ($new_customer) {
+                        $remarks = 'Customer created by ' . $current_user_name;
+                        logCustomerHistory($enid, $customer_no, 'customer_create', null, $new_customer, $remarks, $current_user_id, $current_user_name);
+                    }
+
                     $output["head"]["code"] = 200;
                     $output["head"]["msg"] = "Successfully Customer Created";
                 } else {
@@ -131,18 +165,36 @@ if (isset($obj->search_text)) {
         $output["head"]["code"] = 400;
         $output["head"]["msg"] = "Please provide all the required details.";
     }
-} else if (isset($obj->delete_customer_id) && isset($obj->proof_image_delete)) {
+} else if (isset($obj->delete_customer_id) && isset($obj->proof_image_delete) && isset($obj->current_user_id)) {
     $delete_customer_id = $obj->delete_customer_id;
-
+    $current_user_id = $obj->current_user_id;
+    $current_user_name = getUserName($current_user_id);
     $image_delete = $obj->proof_image_delete;
 
-
-    if (!empty($delete_customer_id)) {
+    if (!empty($delete_customer_id) && !empty($current_user_name)) {
 
         if ($image_delete === true) {
+            // Fetch old customer data for logging
+            $checkOld = $conn->query("SELECT `id`, `customer_id`, `customer_no`, `name`, `phone`, `address`, `place`, `img`, `proof_img` FROM `customer` WHERE `customer_id`='$delete_customer_id' AND `deleted_at`=0 LIMIT 1");
+            $old_customer = null;
+            if ($checkOld && $checkOld->num_rows > 0) {
+                $old_customer = $checkOld->fetch_assoc();
+            }
 
             $status = ImageRemove('customer_proof', $delete_customer_id);
             if ($status == "customer Image Removed Successfully") {
+                // Fetch new customer data for logging
+                $checkNew = $conn->query("SELECT `id`, `customer_id`, `customer_no`, `name`, `phone`, `address`, `place`, `img`, `proof_img` FROM `customer` WHERE `customer_id`='$delete_customer_id' LIMIT 1");
+                $new_customer = null;
+                if ($checkNew && $checkNew->num_rows > 0) {
+                    $new_customer = $checkNew->fetch_assoc();
+                }
+                // Log history if old data exists
+                if ($old_customer && $new_customer) {
+                    $remarks = 'Proof image deleted by ' . $current_user_name;
+                    logCustomerHistory($delete_customer_id, $new_customer['customer_no'], 'proof_image_delete', $old_customer, $new_customer, $remarks, $current_user_id, $current_user_name);
+                }
+
                 $output["head"]["code"] = 200;
                 $output["head"]["msg"] = "successfully customer Image deleted !.";
             } else {
@@ -157,18 +209,36 @@ if (isset($obj->search_text)) {
         $output["head"]["code"] = 400;
         $output["head"]["msg"] = "Please provide all the required details.";
     }
-} else if (isset($obj->delete_customer_id) && isset($obj->image_delete)) {
+} else if (isset($obj->delete_customer_id) && isset($obj->image_delete) && isset($obj->current_user_id)) {
     $delete_customer_id = $obj->delete_customer_id;
-
+    $current_user_id = $obj->current_user_id;
+    $current_user_name = getUserName($current_user_id);
     $image_delete = $obj->image_delete;
 
-
-    if (!empty($delete_customer_id)) {
+    if (!empty($delete_customer_id) && !empty($current_user_name)) {
 
         if ($image_delete === true) {
+            // Fetch old customer data for logging
+            $checkOld = $conn->query("SELECT `id`, `customer_id`, `customer_no`, `name`, `phone`, `address`, `place`, `img`, `proof_img` FROM `customer` WHERE `customer_id`='$delete_customer_id' AND `deleted_at`=0 LIMIT 1");
+            $old_customer = null;
+            if ($checkOld && $checkOld->num_rows > 0) {
+                $old_customer = $checkOld->fetch_assoc();
+            }
 
             $status = ImageRemove('customer', $delete_customer_id);
             if ($status == "customer Image Removed Successfully") {
+                // Fetch new customer data for logging
+                $checkNew = $conn->query("SELECT `id`, `customer_id`, `customer_no`, `name`, `phone`, `address`, `place`, `img`, `proof_img` FROM `customer` WHERE `customer_id`='$delete_customer_id' LIMIT 1");
+                $new_customer = null;
+                if ($checkNew && $checkNew->num_rows > 0) {
+                    $new_customer = $checkNew->fetch_assoc();
+                }
+                // Log history if old data exists
+                if ($old_customer && $new_customer) {
+                    $remarks = 'Image deleted by ' . $current_user_name;
+                    logCustomerHistory($delete_customer_id, $new_customer['customer_no'], 'image_delete', $old_customer, $new_customer, $remarks, $current_user_id, $current_user_name);
+                }
+
                 $output["head"]["code"] = 200;
                 $output["head"]["msg"] = "successfully customer Image deleted !.";
             } else {
@@ -183,12 +253,27 @@ if (isset($obj->search_text)) {
         $output["head"]["code"] = 400;
         $output["head"]["msg"] = "Please provide all the required details.";
     }
-} else if (isset($obj->delete_customer_id)) {
+} else if (isset($obj->delete_customer_id) && isset($obj->current_user_id)) {
     // <<<<<<<<<<===================== This is to Delete the customer =====================>>>>>>>>>>
     $delete_customer_id = $obj->delete_customer_id;
-    if (!empty($delete_customer_id)) {
+    $current_user_id = $obj->current_user_id;
+    $current_user_name = getUserName($current_user_id);
+    if (!empty($delete_customer_id) && !empty($current_user_name)) {
+        // Fetch old customer data for logging
+        $checkOld = $conn->query("SELECT `id`, `customer_id`, `customer_no`, `name`, `phone`, `address`, `place`, `img`, `proof_img` FROM `customer` WHERE `customer_id`='$delete_customer_id' AND `deleted_at`=0 LIMIT 1");
+        $old_customer = null;
+        if ($checkOld && $checkOld->num_rows > 0) {
+            $old_customer = $checkOld->fetch_assoc();
+        }
+
         $deleteCustomer = "UPDATE `customer` SET `deleted_at`=1 WHERE `customer_id`='$delete_customer_id'";
         if ($conn->query($deleteCustomer) === true) {
+            // Log history if old data exists
+            if ($old_customer) {
+                $remarks = 'Customer deleted by ' . $current_user_name;
+                logCustomerHistory($delete_customer_id, $old_customer['customer_no'], 'customer_delete', $old_customer, null, $remarks, $current_user_id, $current_user_name);
+            }
+
             $output["head"]["code"] = 200;
             $output["head"]["msg"] = "Successfully Customer Deleted.";
         } else {
