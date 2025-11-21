@@ -2,6 +2,13 @@
 
 include 'config/db.php';
 header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit();
+}
 
 $json = file_get_contents('php://input');
 $obj = json_decode($json);
@@ -23,7 +30,7 @@ if (isset($obj->search_text)) {
             $output["body"]["user"][$count] = $row;
             $imgLink = null;
             if ($row["img"] != null && $row["img"] != 'null' && strlen($row["img"]) > 0) {
-                $imgLink = "https://".$_SERVER['SERVER_NAME'] . "/uploads/users/" . $row["img"];
+                $imgLink = "https://" . $_SERVER['SERVER_NAME'] . "/uploads/users/" . $row["img"];
                 $output["body"]["user"][$count]["img"] = $imgLink;
             } else {
                 $output["body"]["user"][$count]["img"] = $imgLink;
@@ -67,7 +74,7 @@ if (isset($obj->search_text)) {
                             $output["head"]["msg"] = "Successfully User Details Updated";
                         } else {
                             $output["head"]["code"] = 400;
-                            $output["head"]["msg"] = "Failed to connect. Please try again.".$conn->error;
+                            $output["head"]["msg"] = "Failed to connect. Please try again." . $conn->error;
                         }
                     } else {
                         $output["head"]["code"] = 400;
@@ -87,10 +94,10 @@ if (isset($obj->search_text)) {
 
                         if ($conn->query($createUser)) {
                             $id = $conn->insert_id;
-                            $enid = uniqueID('user',$id);
-                            $update ="UPDATE `user` SET `user_id`='$enid' WHERE `id` = $id";
+                            $enid = uniqueID('user', $id);
+                            $update = "UPDATE `user` SET `user_id`='$enid' WHERE `id` = $id";
                             $conn->query($update);
-                            
+
                             $output["head"]["code"] = 200;
                             $output["head"]["msg"] = "Successfully User Created";
                         } else {
@@ -116,27 +123,25 @@ if (isset($obj->search_text)) {
     }
 } else if (isset($obj->delete_user_id) && isset($obj->image_delete)) {
     $delete_user_id = $obj->delete_user_id;
-   
+
     $image_delete = $obj->image_delete;
 
 
-    if (!empty($delete_user_id) ) {
+    if (!empty($delete_user_id)) {
 
 
-     
 
-            if ($image_delete === true) {
 
-                $status = ImageRemove('user', $delete_user_id);
-                if ($status == "User Image Removed Successfully") {
-                    $output["head"]["code"] = 200;
-                    $output["head"]["msg"] = "successfully user Image deleted !.";
-                } else {
-                    $output["head"]["code"] = 400;
-                    $output["head"]["msg"] = "faild to deleted.please try againg.";
-                }
+        if ($image_delete === true) {
 
-            
+            $status = ImageRemove('user', $delete_user_id);
+            if ($status == "User Image Removed Successfully") {
+                $output["head"]["code"] = 200;
+                $output["head"]["msg"] = "successfully user Image deleted !.";
+            } else {
+                $output["head"]["code"] = 400;
+                $output["head"]["msg"] = "faild to deleted.please try againg.";
+            }
         } else {
             $output["head"]["code"] = 400;
             $output["head"]["msg"] = "User not found.";
@@ -145,7 +150,7 @@ if (isset($obj->search_text)) {
         $output["head"]["code"] = 400;
         $output["head"]["msg"] = "Please provide all the required details.";
     }
-}else
+} else
 if (isset($obj->delete_user_id)) {
     // <<<<<<<<<<===================== This is to Delete the users =====================>>>>>>>>>>
     $delete_user_id = $obj->delete_user_id;
@@ -194,5 +199,3 @@ if (isset($obj->delete_user_id)) {
 }
 
 echo json_encode($output, JSON_NUMERIC_CHECK);
-
-?>

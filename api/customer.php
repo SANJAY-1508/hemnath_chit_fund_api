@@ -2,6 +2,13 @@
 
 include 'config/db.php';
 header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit();
+}
 
 $json = file_get_contents('php://input');
 $obj = json_decode($json);
@@ -26,14 +33,14 @@ if (isset($obj->search_text)) {
             $output["body"]["customer"][$count] = $row;
             $imgLink = null;
             if ($row["img"] != null && $row["img"] != 'null' && strlen($row["img"]) > 0) {
-                $imgLink = "https://".$_SERVER['SERVER_NAME'] . "/uploads/customer/" . $row["img"];
+                $imgLink = "https://" . $_SERVER['SERVER_NAME'] . "/uploads/customer/" . $row["img"];
                 $output["body"]["customer"][$count]["img"] = $imgLink;
             } else {
                 $output["body"]["customer"][$count]["img"] = $imgLink;
             }
             $imgLink1 = null;
             if ($row["proof_img"] != null && $row["proof_img"] != 'null' && strlen($row["proof_img"]) > 0) {
-                $imgLink1 = "https://".$_SERVER['SERVER_NAME'] . "/uploads/customerprof/" . $row["proof_img"];
+                $imgLink1 = "https://" . $_SERVER['SERVER_NAME'] . "/uploads/customerprof/" . $row["proof_img"];
                 $output["body"]["customer"][$count]["proof_img"] = $imgLink1;
             } else {
                 $output["body"]["customer"][$count]["proof_img"] = $imgLink1;
@@ -59,21 +66,21 @@ if (isset($obj->search_text)) {
             $edit_id = $obj->edit_customer_id;
             if ($edit_id) {
                 $updateCustomer = "";
-                if(!empty($img) && !empty($proof_img)){
-                     $outputFilePathcustomer = "../uploads/customer/";
-                     $outputFilePathcustomerprof = "../uploads/customerprof/";
-                     $profile_pathcutomer = pngImageToWebP($img, $outputFilePathcustomer);
-                     $profile_pathcutomerprof = pngImageToWebP($proof_img, $outputFilePathcustomerprof);
+                if (!empty($img) && !empty($proof_img)) {
+                    $outputFilePathcustomer = "../uploads/customer/";
+                    $outputFilePathcustomerprof = "../uploads/customerprof/";
+                    $profile_pathcutomer = pngImageToWebP($img, $outputFilePathcustomer);
+                    $profile_pathcutomerprof = pngImageToWebP($proof_img, $outputFilePathcustomerprof);
                     $updateCustomer = "UPDATE `customer` 
                                    SET `name`='$name', `phone`='$phone', `address`='$address', `place`='$place', `img`='$profile_pathcutomer', `proof_img`='$profile_pathcutomerprof' 
                                    WHERE `customer_id`='$edit_id'";
-                }else{
-                $updateCustomer = "UPDATE `customer` 
+                } else {
+                    $updateCustomer = "UPDATE `customer` 
                                    SET `name`='$name', `phone`='$phone', `address`='$address', `place`='$place' 
                                    WHERE `customer_id`='$edit_id'";
-                 }
+                }
                 if ($conn->query($updateCustomer)) {
-                    
+
                     $output["head"]["code"] = 200;
                     $output["head"]["msg"] = "Successfully Customer Details Updated";
                 } else {
@@ -85,65 +92,63 @@ if (isset($obj->search_text)) {
                 $output["head"]["msg"] = "Customer not found.";
             }
         } else {
-                 $mobileCheck = $conn->query("SELECT `id` FROM `customer` WHERE `phone`='$phone' AND deleted_at = 0");
-                 
-             if ($mobileCheck->num_rows == 0) {
-                $createCustomer="";
-                 if(!empty($img) && !empty($proof_img)){
-                     $outputFilePathcustomer = "../uploads/customer/";
-                     $outputFilePathcustomerprof = "../uploads/customerprof/";
-                     $profile_pathcutomer = pngImageToWebP($img, $outputFilePathcustomer);
-                     $profile_pathcutomerprof = pngImageToWebP($proof_img, $outputFilePathcustomerprof);
-                     
-                  $createCustomer = "INSERT INTO `customer`(`customer_id`, `name`, `phone`, `address`, `place`, `img`, `proof_img`, `create_at`, `deleted_at`) 
+            $mobileCheck = $conn->query("SELECT `id` FROM `customer` WHERE `phone`='$phone' AND deleted_at = 0");
+
+            if ($mobileCheck->num_rows == 0) {
+                $createCustomer = "";
+                if (!empty($img) && !empty($proof_img)) {
+                    $outputFilePathcustomer = "../uploads/customer/";
+                    $outputFilePathcustomerprof = "../uploads/customerprof/";
+                    $profile_pathcutomer = pngImageToWebP($img, $outputFilePathcustomer);
+                    $profile_pathcutomerprof = pngImageToWebP($proof_img, $outputFilePathcustomerprof);
+
+                    $createCustomer = "INSERT INTO `customer`(`customer_id`, `name`, `phone`, `address`, `place`, `img`, `proof_img`, `create_at`, `deleted_at`) 
                                VALUES ('', '$name', '$phone', '$address', '$place', '$profile_pathcutomer', '$profile_pathcutomerprof', '$timestamp', '0')";
-                 }else{
-                 
-                $createCustomer = "INSERT INTO `customer`(`customer_id`, `name`, `phone`, `address`, `place`, `create_at`, `deleted_at`) 
+                } else {
+
+                    $createCustomer = "INSERT INTO `customer`(`customer_id`, `name`, `phone`, `address`, `place`, `create_at`, `deleted_at`) 
                                    VALUES ('', '$name', '$phone', '$address', '$place', '$timestamp', '0')";
-                 }
+                }
                 if ($conn->query($createCustomer)) {
                     $id = $conn->insert_id;
                     $enid = uniqueID('Customer', $id);
                     $customer_no = generateCustomerNo($id);
                     $update = "UPDATE `customer` SET `customer_id`='$enid',`customer_no`='$customer_no' WHERE `id` = $id";
                     $conn->query($update);
-    
+
                     $output["head"]["code"] = 200;
                     $output["head"]["msg"] = "Successfully Customer Created";
                 } else {
                     $output["head"]["code"] = 400;
                     $output["head"]["msg"] = "Failed to create. Please try again.";
                 }
-            }else{
-                  $output["head"]["code"] = 400;
-                  $output["head"]["msg"] = "Mobile Number Already Exists.";
-            }    
+            } else {
+                $output["head"]["code"] = 400;
+                $output["head"]["msg"] = "Mobile Number Already Exists.";
+            }
         }
     } else {
         $output["head"]["code"] = 400;
         $output["head"]["msg"] = "Please provide all the required details.";
     }
-}else if (isset($obj->delete_customer_id) && isset($obj->proof_image_delete)) {
+} else if (isset($obj->delete_customer_id) && isset($obj->proof_image_delete)) {
     $delete_customer_id = $obj->delete_customer_id;
-   
+
     $image_delete = $obj->proof_image_delete;
 
 
-    if (!empty($delete_customer_id) ) {
+    if (!empty($delete_customer_id)) {
 
-            if ($image_delete === true) {
+        if ($image_delete === true) {
 
-                $status = ImageRemove('customer_proof', $delete_customer_id);
-                if ($status == "customer Image Removed Successfully") {
-                    $output["head"]["code"] = 200;
-                    $output["head"]["msg"] = "successfully customer Image deleted !.";
-                } else {
-                    $output["head"]["code"] = 400;
-                    $output["head"]["msg"] = "faild to deleted.please try againg.";
-                }
-
-            
+            $status = ImageRemove('customer_proof', $delete_customer_id);
+            if ($status == "customer Image Removed Successfully") {
+                $output["head"]["code"] = 200;
+                $output["head"]["msg"] = "successfully customer Image deleted !.";
+            } else {
+                $output["head"]["code"] = 400;
+                $output["head"]["msg"] = "faild to deleted.please try againg.";
+            }
         } else {
             $output["head"]["code"] = 400;
             $output["head"]["msg"] = "customer not found.";
@@ -152,26 +157,24 @@ if (isset($obj->search_text)) {
         $output["head"]["code"] = 400;
         $output["head"]["msg"] = "Please provide all the required details.";
     }
-}else if (isset($obj->delete_customer_id) && isset($obj->image_delete)) {
+} else if (isset($obj->delete_customer_id) && isset($obj->image_delete)) {
     $delete_customer_id = $obj->delete_customer_id;
-   
+
     $image_delete = $obj->image_delete;
 
 
-    if (!empty($delete_customer_id) ) {
+    if (!empty($delete_customer_id)) {
 
-            if ($image_delete === true) {
+        if ($image_delete === true) {
 
-                $status = ImageRemove('customer', $delete_customer_id);
-                if ($status == "customer Image Removed Successfully") {
-                    $output["head"]["code"] = 200;
-                    $output["head"]["msg"] = "successfully customer Image deleted !.";
-                } else {
-                    $output["head"]["code"] = 400;
-                    $output["head"]["msg"] = "faild to deleted.please try againg.";
-                }
-
-            
+            $status = ImageRemove('customer', $delete_customer_id);
+            if ($status == "customer Image Removed Successfully") {
+                $output["head"]["code"] = 200;
+                $output["head"]["msg"] = "successfully customer Image deleted !.";
+            } else {
+                $output["head"]["code"] = 400;
+                $output["head"]["msg"] = "faild to deleted.please try againg.";
+            }
         } else {
             $output["head"]["code"] = 400;
             $output["head"]["msg"] = "customer not found.";
@@ -203,5 +206,3 @@ if (isset($obj->search_text)) {
 }
 
 echo json_encode($output, JSON_NUMERIC_CHECK);
-
-?>

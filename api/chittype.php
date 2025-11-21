@@ -2,6 +2,13 @@
 
 include 'config/db.php';
 header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit();
+}
 
 $json = file_get_contents('php://input');
 $obj = json_decode($json);
@@ -21,7 +28,7 @@ if (isset($obj->search_text)) {
             $output["head"]["code"] = 200;
             $output["head"]["msg"] = "Success";
             $output["body"]["chit_type"][$count] = $row;
-           
+
             $count++;
         }
     } else {
@@ -32,47 +39,46 @@ if (isset($obj->search_text)) {
 } else if (isset($obj->chit_type)) {
     // <<<<<<<<<<===================== This is to Create and Edit users =====================>>>>>>>>>>
     $chit_type = $obj->chit_type;
-   
+
 
     if (!empty($chit_type)) {
 
         if (isset($obj->edit_chit_type_id)) {
-            
+
             $edit_id = $obj->edit_chit_type_id;
-            
+
             if ($edit_id) {
-               
-                    $updateChitType = "UPDATE `chit_type` SET `chit_type`='$chit_type' WHERE `chit_type_id`='$edit_id'";
-                    
+
+                $updateChitType = "UPDATE `chit_type` SET `chit_type`='$chit_type' WHERE `chit_type_id`='$edit_id'";
+
                 if ($conn->query($updateChitType)) {
                     $output["head"]["code"] = 200;
                     $output["head"]["msg"] = "Successfully Chit Type Details Updated";
                 } else {
                     $output["head"]["code"] = 400;
-                    $output["head"]["msg"] = "Failed to connect. Please try again.".$conn->error;
+                    $output["head"]["msg"] = "Failed to connect. Please try again." . $conn->error;
                 }
             } else {
                 $output["head"]["code"] = 400;
                 $output["head"]["msg"] = "Chit Type not found.";
             }
         } else {
-               
-                $createChitTYpe = "INSERT INTO `chit_type` (`chit_type`, `create_at`, `deleted_at`) VALUES ('$chit_type', '$timestamp', '0')";
-            
-                if ($conn->query($createChitTYpe)) {
-                    $id = $conn->insert_id;
-                    $enid = uniqueID('Chittype',$id);
-                    $update ="UPDATE `chit_type` SET `chit_type_id`='$enid' WHERE `id` = $id";
-                    $conn->query($update);
-                    
-                    $output["head"]["code"] = 200;
-                    $output["head"]["msg"] = "Successfully Chit Type Created";
-                } else {
-                    $output["head"]["code"] = 400;
-                    $output["head"]["msg"] = "Failed to connect. Please try again.";
-                }
+
+            $createChitTYpe = "INSERT INTO `chit_type` (`chit_type`, `create_at`, `deleted_at`) VALUES ('$chit_type', '$timestamp', '0')";
+
+            if ($conn->query($createChitTYpe)) {
+                $id = $conn->insert_id;
+                $enid = uniqueID('Chittype', $id);
+                $update = "UPDATE `chit_type` SET `chit_type_id`='$enid' WHERE `id` = $id";
+                $conn->query($update);
+
+                $output["head"]["code"] = 200;
+                $output["head"]["msg"] = "Successfully Chit Type Created";
+            } else {
+                $output["head"]["code"] = 400;
+                $output["head"]["msg"] = "Failed to connect. Please try again.";
+            }
         }
-    
     } else {
         $output["head"]["code"] = 400;
         $output["head"]["msg"] = "Please provide all the required details.";
@@ -98,12 +104,10 @@ if (isset($obj->search_text)) {
         $output["head"]["code"] = 400;
         $output["head"]["msg"] = "Please provide all the required details.";
     }
-}else {
+} else {
     $output["head"]["code"] = 400;
     $output["head"]["msg"] = "Parameter Mismatch";
     $output["head"]["inputs"] = $obj;
 }
 
 echo json_encode($output, JSON_NUMERIC_CHECK);
-
-?>

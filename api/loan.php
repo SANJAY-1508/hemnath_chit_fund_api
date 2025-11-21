@@ -2,6 +2,13 @@
 
 include 'config/db.php';
 header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit();
+}
 
 $json = file_get_contents('php://input');
 $obj = json_decode($json);
@@ -11,7 +18,7 @@ date_default_timezone_set('Asia/Calcutta');
 $timestamp = date('Y-m-d H:i:s');
 
 if (isset($obj->search_text)) {
-    
+
     $search_text = $obj->search_text;
     $sql = "SELECT * FROM `loan` WHERE `deleted_at`= 0 AND (`name` LIKE '%$search_text%' OR `loan_id` LIKE '%$search_text%')";
 
@@ -29,7 +36,6 @@ if (isset($obj->search_text)) {
         $output["head"]["msg"] = "Loan Details Not Found";
         $output["body"]["loan"] = [];
     }
-
 } else if (isset($obj->name) && isset($obj->phone)) {
 
     $name = $obj->name;
@@ -40,7 +46,7 @@ if (isset($obj->search_text)) {
     $balance = $product_cost - $advance;
     $create_by = isset($obj->create_by) ? $obj->create_by : "";
     $address = isset($obj->address) ? $obj->address : "";
-    
+
 
     // Check if it's an update request
     if (isset($obj->edit_loan_id)) {
@@ -64,7 +70,6 @@ if (isset($obj->search_text)) {
             $output["head"]["code"] = 400;
             $output["head"]["msg"] = "Loan not found.";
         }
-
     } else {
         // Check if the loan already exists
         $loanCheck = $conn->query("SELECT `loan_id` FROM `loan` WHERE `phone`='$phone' AND `deleted_at` = 0");
@@ -86,15 +91,13 @@ if (isset($obj->search_text)) {
                 $output["head"]["code"] = 400;
                 $output["head"]["msg"] = "Failed to create loan. Please try again.";
             }
-
         } else {
             $output["head"]["code"] = 400;
             $output["head"]["msg"] = "Phone Number Already Exists.";
         }
     }
-
-}else if(isset($obj->loan_id) && isset($obj->payment_amount) && isset($obj->paid_at)){
-      $loan_id = $conn->real_escape_string($obj->loan_id);
+} else if (isset($obj->loan_id) && isset($obj->payment_amount) && isset($obj->paid_at)) {
+    $loan_id = $conn->real_escape_string($obj->loan_id);
     $payment_amount = $conn->real_escape_string($obj->payment_amount);
     $paid_at = $obj->paid_at;
     $timestamp = date('Y-m-d H:i:s');
@@ -139,8 +142,8 @@ if (isset($obj->search_text)) {
         $output["head"]["code"] = 404;
         $output["head"]["msg"] = "Loan not found.";
     }
-}else if(isset($obj->from_date) && isset($obj->to_date) && isset($obj->staff_name)){
-     $from_date = $obj->from_date;
+} else if (isset($obj->from_date) && isset($obj->to_date) && isset($obj->staff_name)) {
+    $from_date = $obj->from_date;
     $to_date = $obj->to_date;
     $staff_name = isset($obj->staff_name) ? $obj->staff_name : '';
 
@@ -207,13 +210,13 @@ if (isset($obj->search_text)) {
 
     // Close the statement
     $stmt->close();
-} else if(isset($obj->loanId)){
-      $loanId = $conn->real_escape_string($obj->loanId);
+} else if (isset($obj->loanId)) {
+    $loanId = $conn->real_escape_string($obj->loanId);
 
     // Query the `loan_payment` table to get payment history for the provided `loanId`
     $paymentHistoryQuery = "SELECT `id`, `loan_payment_id`, `loan_id`, `name`, `phone`, `payment_amount`, `balance`, `payment_status`, `delete_at`, `create_at` 
                             FROM `loan_payment` WHERE `loan_id` = '$loanId'";
-    
+
     $result = $conn->query($paymentHistoryQuery);
 
     if ($result->num_rows > 0) {
@@ -255,5 +258,3 @@ if (isset($obj->search_text)) {
 }
 
 echo json_encode($output, JSON_NUMERIC_CHECK);
-
-?>

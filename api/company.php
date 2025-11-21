@@ -2,6 +2,13 @@
 
 include 'config/db.php';
 header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit();
+}
 
 $json = file_get_contents('php://input');
 $obj = json_decode($json);
@@ -9,6 +16,8 @@ $output = array();
 
 date_default_timezone_set('Asia/Calcutta');
 $timestamp = date('Y-m-d H:i:s');
+
+
 
 
 if (isset($obj->search_text)) {
@@ -47,7 +56,7 @@ if (isset($obj->search_text)) {
     $bank_name = $obj->bank_name;
     $ifsc_code = $obj->ifsc_code;
     $bank_branch = $obj->bank_branch;
-   
+
 
     if (!empty($company_name) && !empty($address) && !empty($pincode) && !empty($phone_number) && !empty($city) && !empty($state)) {
 
@@ -55,25 +64,23 @@ if (isset($obj->search_text)) {
 
             if (numericCheck($phone_number) && strlen($phone_number) == 10) {
 
-                        $edit_id = 1;
-                        $updateCompany = "";
-                        if (!empty($company_profile_img)) {
-                            $outputFilePath = "../uploads/company/";
-                            $profile_path = pngImageToWebP($company_profile_img, $outputFilePath);
-                            $updateCompany = "UPDATE `company` SET `company_name`='$company_name', `img`='$profile_path', `address`='$address', `pincode`='$pincode', `city`='$city', `state`='$state', `phone`='$phone_number', `mobile`='$mobile_number', `gst_no`='$gst_number', `acc_number`='$acc_number', `acc_holder_name`='$acc_holder_name', `bank_name`='$bank_name', `ifsc_code`='$ifsc_code', `bank_branch`='$bank_branch' WHERE `id`='$edit_id'";
-                        } else {
-                            $updateCompany = "UPDATE `company` SET `company_name`='$company_name', `address`='$address', `pincode`='$pincode', `city`='$city', `state`='$state', `phone`='$phone_number', `mobile`='$mobile_number', `gst_no`='$gst_number', `acc_number`='$acc_number', `acc_holder_name`='$acc_holder_name', `bank_name`='$bank_name', `ifsc_code`='$ifsc_code', `bank_branch`='$bank_branch' WHERE `id`='$edit_id'";
-                        }
-                       
-                        if ($conn->query($updateCompany)) {
-                            $output["head"]["code"] = 200;
-                            $output["head"]["msg"] = "Successfully Company Details Updated";
-                        } else {
-                            $output["head"]["code"] = 400;
-                            $output["head"]["msg"] = "Failed to connect. Please try again.".$conn->error;
-                        }
-                   
-               
+                $edit_id = 1;
+                $updateCompany = "";
+                if (!empty($company_profile_img)) {
+                    $outputFilePath = "../uploads/company/";
+                    $profile_path = pngImageToWebP($company_profile_img, $outputFilePath);
+                    $updateCompany = "UPDATE `company` SET `company_name`='$company_name', `img`='$profile_path', `address`='$address', `pincode`='$pincode', `city`='$city', `state`='$state', `phone`='$phone_number', `mobile`='$mobile_number', `gst_no`='$gst_number', `acc_number`='$acc_number', `acc_holder_name`='$acc_holder_name', `bank_name`='$bank_name', `ifsc_code`='$ifsc_code', `bank_branch`='$bank_branch' WHERE `id`='$edit_id'";
+                } else {
+                    $updateCompany = "UPDATE `company` SET `company_name`='$company_name', `address`='$address', `pincode`='$pincode', `city`='$city', `state`='$state', `phone`='$phone_number', `mobile`='$mobile_number', `gst_no`='$gst_number', `acc_number`='$acc_number', `acc_holder_name`='$acc_holder_name', `bank_name`='$bank_name', `ifsc_code`='$ifsc_code', `bank_branch`='$bank_branch' WHERE `id`='$edit_id'";
+                }
+
+                if ($conn->query($updateCompany)) {
+                    $output["head"]["code"] = 200;
+                    $output["head"]["msg"] = "Successfully Company Details Updated";
+                } else {
+                    $output["head"]["code"] = 400;
+                    $output["head"]["msg"] = "Failed to connect. Please try again." . $conn->error;
+                }
             } else {
                 $output["head"]["code"] = 400;
                 $output["head"]["msg"] = "Invalid Phone Number.";
@@ -91,27 +98,24 @@ if (isset($obj->search_text)) {
 // <<<<<<<<<<===================== This is to Delete the users =====================>>>>>>>>>>
 
 else if (isset($obj->image_delete)) {
-  
+
     $image_delete = $obj->image_delete;
 
-   
-        if ($image_delete === true) {
-        
+
+    if ($image_delete === true) {
+
         $status = ImageRemove('company', 1);
-            if ($status == "company Image Removed Successfully") {
-                $output["head"]["code"] = 200;
-                $output["head"]["msg"] = "successfully company Image deleted !.";
-            } else {
-                $output["head"]["code"] = 400;
-                $output["head"]["msg"] = "faild to deleted.please try againg.";
-            }
-            
+        if ($status == "company Image Removed Successfully") {
+            $output["head"]["code"] = 200;
+            $output["head"]["msg"] = "successfully company Image deleted !.";
         } else {
             $output["head"]["code"] = 400;
-            $output["head"]["msg"] = "Parameter is Mismatch";
+            $output["head"]["msg"] = "faild to deleted.please try againg.";
         }
-       
-  
+    } else {
+        $output["head"]["code"] = 400;
+        $output["head"]["msg"] = "Parameter is Mismatch";
+    }
 } else {
     $output["head"]["code"] = 400;
     $output["head"]["msg"] = "Parameter is Mismatch";
