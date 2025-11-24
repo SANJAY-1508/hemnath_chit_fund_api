@@ -40,6 +40,7 @@ if (isset($obj->search_text)) {
     chit_no, 
     due_amt,
     customer_id, 
+    chit_type_id,
     name, 
     chit_type,
     customer_no, 
