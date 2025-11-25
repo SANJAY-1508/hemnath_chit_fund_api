@@ -175,12 +175,14 @@ WHERE `name` LIKE '%$search_text%' GROUP BY
 
     // Query to get chit and customer records using JOIN
     $query = "
-        SELECT chit.*,customer.phone, customer.address, customer.place
-        FROM `chit`
-        JOIN `customer` ON chit.customer_id = customer.customer_id
-        WHERE chit.deleted_at = 0 
-        AND chit.chit_id = '$chit_id'
-    ";
+    SELECT chit.*, customer.phone, customer.address, customer.place
+    FROM `chit`
+    JOIN `customer` ON chit.customer_id = customer.customer_id
+    WHERE chit.deleted_at = 0 
+    AND chit.chit_id = '$chit_id'
+    ORDER BY chit.chit_service_id ASC
+";
+
     $chit_id_result = $conn->query($query);
 
     // Initialize response arrays
