@@ -608,6 +608,153 @@ WHERE `name` LIKE '%$search_text%' GROUP BY
     $output["head"]["code"] = 200;
     $output["head"]["msg"] = "Recent paid transactions retrieved successfully";
     $output["data"] = $recent_paid;
+} else if (isset($obj->get_collection_report)) {
+    // Get all chit types
+    $query_types = "SELECT id, chit_type_id, chit_type FROM chit_type WHERE deleted_at = 0";
+    $types_result = $conn->query($query_types);
+    $chit_types = [];
+    while ($row = $types_result->fetch_assoc()) {
+        $chit_types[] = $row;
+    }
+
+    $report = [];
+    foreach ($chit_types as $type) {
+        $chit_type_id = $type['chit_type_id'];
+
+        // Sum paid amount (collected)
+        $query_paid = "SELECT SUM(paid_amt) AS collected FROM chit WHERE chit_type_id = ? AND deleted_at = 0 AND freeze_at = 0 AND payment_status = 'paid'";
+        $stmt_paid = $conn->prepare($query_paid);
+        $stmt_paid->bind_param("s", $chit_type_id);
+        $stmt_paid->execute();
+        $result_paid = $stmt_paid->get_result();
+        $row_paid = $result_paid->fetch_assoc();
+        $collected = (float)($row_paid['collected'] ?? 0);
+        $stmt_paid->close();
+
+        // Sum balance amount (unpaid/outstanding)
+        $query_unpaid = "SELECT SUM(balance_amt) AS unpaid FROM chit WHERE chit_type_id = ? AND deleted_at = 0 AND freeze_at = 0 AND payment_status = 'pending'";
+        $stmt_unpaid = $conn->prepare($query_unpaid);
+        $stmt_unpaid->bind_param("s", $chit_type_id);
+        $stmt_unpaid->execute();
+        $result_unpaid = $stmt_unpaid->get_result();
+        $row_unpaid = $result_unpaid->fetch_assoc();
+        $unpaid = (float)($row_unpaid['unpaid'] ?? 0);
+        $stmt_unpaid->close();
+
+        $report[] = [
+            'chit_type' => $type['chit_type'],
+            'collected' => $collected,
+            'unpaid' => $unpaid
+        ];
+    }
+
+    $output["head"]["code"] = 200;
+    $output["head"]["msg"] = "Collection report retrieved successfully";
+    $output["data"] = $report;
+} else if (isset($obj->get_customer_collection_report)) {
+    $customer_no = isset($obj->customer_no) ? $conn->real_escape_string($obj->customer_no) : '';
+    $payment_status = isset($obj->payment_status) ? $conn->real_escape_string($obj->payment_status) : '';
+
+    $query = "SELECT cu.customer_id, cu.name AS customer_name, cu.customer_no, ct.chit_type,
+              SUM(CASE WHEN chit.payment_status = 'paid' THEN chit.paid_amt ELSE 0 END) AS total_paid,
+              SUM(CASE WHEN chit.payment_status = 'pending' THEN chit.due_amt ELSE 0 END) AS total_unpaid,
+              SUM(CASE WHEN chit.payment_status = 'pending' AND chit.due_date < CURDATE() THEN chit.due_amt ELSE 0 END) AS total_overdue,
+              COUNT(chit.chit_service_id) AS total_installments
+              FROM customer cu
+              JOIN chit ON cu.customer_id = chit.customer_id
+              JOIN chit_type ct ON chit.chit_type_id = ct.chit_type_id
+              WHERE chit.deleted_at = 0 AND chit.freeze_at = 0 AND ct.deleted_at = 0";
+
+    $params = [];
+    $types = '';
+    if (!empty($customer_no)) {
+        $query .= " AND cu.customer_no LIKE ?";
+        $params[] = "%$customer_no%";
+        $types .= 's';
+    }
+    if (!empty($payment_status)) {
+        $query .= " AND chit.payment_status = ?";
+        $params[] = $payment_status;
+        $types .= 's';
+    }
+
+    $query .= " GROUP BY cu.customer_id, cu.name, cu.customer_no, ct.chit_type_id, ct.chit_type
+                ORDER BY cu.name";
+
+    $stmt = $conn->prepare($query);
+    if (!empty($types)) {
+        $stmt->bind_param($types, ...$params);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $report = [];
+    while ($row = $result->fetch_assoc()) {
+        $report[] = $row;
+    }
+    $stmt->close();
+
+    $output["head"]["code"] = 200;
+    $output["head"]["msg"] = "Customer collection report retrieved successfully";
+    $output["data"] = $report;
+} else if (isset($obj->get_date_collection_report)) {
+    $from_date = isset($obj->from_date) ? $conn->real_escape_string($obj->from_date) : '';
+    $to_date = isset($obj->to_date) ? $conn->real_escape_string($obj->to_date) : '';
+    $chit_type_filter = isset($obj->chit_type) ? $conn->real_escape_string($obj->chit_type) : '';
+    $customer_no_filter = isset($obj->customer_no) ? $conn->real_escape_string($obj->customer_no) : '';
+    $payment_status_filter = isset($obj->payment_status) ? $conn->real_escape_string($obj->payment_status) : '';
+
+    $query = "SELECT cu.customer_no, cu.name, DATE(chit.due_date) AS collection_date, ct.chit_type, chit.due_no, chit.due_amt, chit.paid_amt, chit.balance_amt, chit.payment_status, chit.paid_at,
+              CASE WHEN chit.payment_status = 'pending' AND chit.due_date < CURDATE() THEN 1 ELSE 0 END AS is_overdue,
+              CASE WHEN chit.payment_status = 'pending' AND chit.due_date < CURDATE() THEN chit.due_amt ELSE 0 END AS overdue_amount,
+              CASE WHEN chit.payment_status = 'pending' THEN chit.due_amt ELSE 0 END AS unpaid_amount
+              FROM chit
+              JOIN customer cu ON chit.customer_id = cu.customer_id
+              JOIN chit_type ct ON chit.chit_type_id = ct.chit_type_id
+              WHERE chit.deleted_at = 0 AND chit.freeze_at = 0 AND ct.deleted_at = 0";
+
+    $params = [];
+    $types = '';
+    if (!empty($from_date) && !empty($to_date)) {
+        $query .= " AND chit.due_date BETWEEN ? AND ?";
+        $params[] = $from_date;
+        $params[] = $to_date;
+        $types .= 'ss';
+    }
+    if (!empty($chit_type_filter)) {
+        $query .= " AND ct.chit_type = ?";
+        $params[] = $chit_type_filter;
+        $types .= 's';
+    }
+    if (!empty($customer_no_filter)) {
+        $query .= " AND cu.customer_no LIKE ?";
+        $params[] = "%$customer_no_filter%";
+        $types .= 's';
+    }
+    if (!empty($payment_status_filter)) {
+        $query .= " AND chit.payment_status = ?";
+        $params[] = $payment_status_filter;
+        $types .= 's';
+    }
+
+    $query .= " ORDER BY collection_date ASC, cu.name, chit.due_no";
+
+    $stmt = $conn->prepare($query);
+    if (!empty($types)) {
+        $stmt->bind_param($types, ...$params);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $report = [];
+    while ($row = $result->fetch_assoc()) {
+        $report[] = $row;
+    }
+    $stmt->close();
+
+    $output["head"]["code"] = 200;
+    $output["head"]["msg"] = "Date collection report retrieved successfully";
+    $output["data"] = $report;
 } else {
     $output["head"]["code"] = 400;
     $output["head"]["msg"] = "Parameter Mismatch";
