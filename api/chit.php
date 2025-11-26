@@ -382,6 +382,122 @@ WHERE `name` LIKE '%$search_text%' GROUP BY
 
     // Close the statement
     $stmt->close();
+} else if (isset($obj->get_monthly_data) || isset($obj->get_daily_data)) {
+
+    date_default_timezone_set('Asia/Calcutta');
+    $current_date = date('Y-m-d');
+
+    /*-------------------------------------------
+        1. DAILY DATA (User selected a month)
+    --------------------------------------------*/
+    if (isset($obj->get_daily_data) && isset($obj->month)) {
+
+        $month = $obj->month;            // e.g. "2025-11"
+        $from_date = $month . "-01";     // Start of month
+        $to_date = date("Y-m-t", strtotime($from_date)); // End of month
+
+        $query_daily = "
+            SELECT 
+                DATE(due_date) AS day,
+                SUM(CASE WHEN payment_status = 'paid' THEN paid_amt ELSE 0 END) AS Paid,
+                SUM(CASE WHEN payment_status = 'pending' THEN due_amt ELSE 0 END) AS UnPaid
+            FROM chit
+            WHERE due_date BETWEEN ? AND ? 
+              AND deleted_at = 0
+            GROUP BY DATE(due_date)
+            ORDER BY DATE(due_date) ASC
+        ";
+
+        $stmt = $conn->prepare($query_daily);
+        $stmt->bind_param("ss", $from_date, $to_date);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $daily_data = [];
+        while ($row = $result->fetch_assoc()) {
+            $daily_data[$row['day']] = $row;
+        }
+
+        $stmt->close();
+
+        // Generate full days for the month
+        $full_daily = [];
+        $start = new DateTime($from_date);
+        $end = new DateTime($to_date);
+        $interval = new DateInterval('P1D');
+        $period = new DatePeriod($start, $interval, $end->modify('+1 day'));
+
+        foreach ($period as $date) {
+            $day_str = $date->format('Y-m-d');
+            $full_daily[] = [
+                'day' => $day_str,
+                'Paid' => isset($daily_data[$day_str]) ? (int)$daily_data[$day_str]['Paid'] : 0,
+                'UnPaid' => isset($daily_data[$day_str]) ? (int)$daily_data[$day_str]['UnPaid'] : 0
+            ];
+        }
+
+        $output["head"]["code"] = 200;
+        $output["head"]["msg"] = "Daily data retrieved successfully";
+        $output["data"] = $full_daily;
+    }
+    /*-------------------------------------------
+        2. MONTHLY DATA (Full Year: Jan to Dec)
+    --------------------------------------------*/ else {
+
+        $year = isset($obj->year) ? $obj->year : date('Y');
+        $start_date = $year . '-01-01';
+        $end_date = (intval($year) + 1) . '-01-01';
+
+        $query_monthly = "
+            SELECT 
+                DATE_FORMAT(due_date, '%Y-%m') AS month_key,
+                DATE_FORMAT(due_date, '%b') AS name,
+                SUM(CASE WHEN payment_status = 'paid' THEN paid_amt ELSE 0 END) AS Paid,
+                SUM(CASE WHEN payment_status = 'pending' THEN due_amt ELSE 0 END) AS UnPaid
+            FROM chit
+            WHERE due_date >= ? AND due_date < ?
+              AND deleted_at = 0
+            GROUP BY YEAR(due_date), MONTH(due_date)
+            ORDER BY YEAR(due_date), MONTH(due_date)
+        ";
+
+        $stmt = $conn->prepare($query_monthly);
+        $stmt->bind_param("ss", $start_date, $end_date);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $monthly_data = [];
+        while ($row = $result->fetch_assoc()) {
+            $monthly_data[$row['month_key']] = $row;
+        }
+
+        $stmt->close();
+
+        // Generate full 12 months for the year
+        $full_monthly = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $month_key = $year . '-' . str_pad($m, 2, '0', STR_PAD_LEFT);
+            $name = date('M', mktime(0, 0, 0, $m, 1, $year));
+            $full_monthly[] = [
+                'month_key' => $month_key,
+                'name' => $name,
+                'Paid' => 0,
+                'UnPaid' => 0
+            ];
+        }
+
+        // Merge queried data into full months
+        foreach ($full_monthly as &$item) {
+            if (isset($monthly_data[$item['month_key']])) {
+                $item['Paid'] = $monthly_data[$item['month_key']]['Paid'];
+                $item['UnPaid'] = $monthly_data[$item['month_key']]['UnPaid'];
+            }
+        }
+
+        $output["head"]["code"] = 200;
+        $output["head"]["msg"] = "Monthly data retrieved successfully";
+        $output["data"] = $full_monthly;
+    }
 } else {
     $output["head"]["code"] = 400;
     $output["head"]["msg"] = "Parameter Mismatch";
