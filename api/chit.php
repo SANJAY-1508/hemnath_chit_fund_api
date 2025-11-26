@@ -541,6 +541,50 @@ WHERE `name` LIKE '%$search_text%' GROUP BY
     $output["head"]["code"] = 200;
     $output["head"]["msg"] = "Chit distribution retrieved successfully";
     $output["data"] = $distribution;
+} else if (isset($obj->get_chit_payment_report)) {
+    // Get all chit types
+    $query_types = "SELECT id, chit_type_id, chit_type FROM chit_type WHERE deleted_at = 0";
+    $types_result = $conn->query($query_types);
+    $chit_types = [];
+    while ($row = $types_result->fetch_assoc()) {
+        $chit_types[] = $row;
+    }
+
+    $report = [];
+    foreach ($chit_types as $type) {
+        $chit_type_id = $type['chit_type_id'];
+
+        // Count total past dues
+        $query_total = "SELECT COUNT(*) AS total FROM chit WHERE chit_type_id = ? AND deleted_at = 0 AND freeze_at = 0 AND due_date < CURDATE()";
+        $stmt_total = $conn->prepare($query_total);
+        $stmt_total->bind_param("s", $chit_type_id);
+        $stmt_total->execute();
+        $result_total = $stmt_total->get_result();
+        $row_total = $result_total->fetch_assoc();
+        $total = (int)$row_total['total'];
+        $stmt_total->close();
+
+        // Count paid past dues
+        $query_paid = "SELECT COUNT(*) AS paid FROM chit WHERE chit_type_id = ? AND deleted_at = 0 AND freeze_at = 0 AND due_date < CURDATE() AND payment_status = 'paid'";
+        $stmt_paid = $conn->prepare($query_paid);
+        $stmt_paid->bind_param("s", $chit_type_id);
+        $stmt_paid->execute();
+        $result_paid = $stmt_paid->get_result();
+        $row_paid = $result_paid->fetch_assoc();
+        $paid = (int)$row_paid['paid'];
+        $stmt_paid->close();
+
+        $percentage = ($total > 0) ? round(($paid / $total) * 100, 2) : 0;
+
+        $report[] = [
+            'chit_type' => $type['chit_type'],
+            'percentage_paid' => $percentage
+        ];
+    }
+
+    $output["head"]["code"] = 200;
+    $output["head"]["msg"] = "Chit payment report retrieved successfully";
+    $output["data"] = $report;
 } else {
     $output["head"]["code"] = 400;
     $output["head"]["msg"] = "Parameter Mismatch";
