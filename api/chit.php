@@ -585,6 +585,29 @@ WHERE `name` LIKE '%$search_text%' GROUP BY
     $output["head"]["code"] = 200;
     $output["head"]["msg"] = "Chit payment report retrieved successfully";
     $output["data"] = $report;
+} else if (isset($obj->get_recent_paid)) {
+    // Query to get last 5 paid transactions, ordered by paid_at DESC
+    $query = "SELECT `chit_service_id`, `chit_id`, `chit_no`, `customer_id`, `name`, 
+              `customer_no`, `chit_type`, `chit_type_id`, `due_no`, `due_amt`, `due_date`, 
+              `create_by`, `create_at`, `balance_amt`, `paid_amt`, `payment_status`, 
+              `payment_method`, `paid_by`, `paid_at`, `freeze_at`, `freeze_command`, `deleted_at` 
+              FROM `chit` 
+              WHERE `payment_status` = 'paid' AND `deleted_at` = 0 AND `freeze_at` = 0
+              ORDER BY `paid_at` DESC 
+              LIMIT 5";
+
+    $result = $conn->query($query);
+
+    $recent_paid = [];
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $recent_paid[] = $row;
+        }
+    }
+
+    $output["head"]["code"] = 200;
+    $output["head"]["msg"] = "Recent paid transactions retrieved successfully";
+    $output["data"] = $recent_paid;
 } else {
     $output["head"]["code"] = 400;
     $output["head"]["msg"] = "Parameter Mismatch";
