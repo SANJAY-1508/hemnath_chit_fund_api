@@ -498,6 +498,49 @@ WHERE `name` LIKE '%$search_text%' GROUP BY
         $output["head"]["msg"] = "Monthly data retrieved successfully";
         $output["data"] = $full_monthly;
     }
+} else if (isset($obj->get_chit_distribution)) {
+    // Get all chit types
+    $query_types = "SELECT id, chit_type_id, chit_type FROM chit_type WHERE deleted_at = 0";
+    $types_result = $conn->query($query_types);
+    $chit_types = [];
+    while ($row = $types_result->fetch_assoc()) {
+        $chit_types[] = $row;
+    }
+
+    $distribution = [];
+    $total_active = 0;
+    foreach ($chit_types as $type) {
+        $chit_type_id = $type['chit_type_id'];
+        $query_count = "SELECT COUNT(DISTINCT chit_id) AS count FROM chit WHERE chit_type_id = ? AND deleted_at = 0 AND freeze_at = 0";
+        $stmt = $conn->prepare($query_count);
+        $stmt->bind_param("s", $chit_type_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $count = (int)$row['count'];
+        $stmt->close();
+
+        if ($count > 0) {
+            $total_active += $count;
+        }
+
+        $distribution[] = [
+            'chit_type' => $type['chit_type'],
+            'count' => $count,
+            'percentage' => 0 // temp
+        ];
+    }
+
+    // Calculate percentages
+    if ($total_active > 0) {
+        foreach ($distribution as &$item) {
+            $item['percentage'] = round(($item['count'] / $total_active) * 100, 2);
+        }
+    }
+
+    $output["head"]["code"] = 200;
+    $output["head"]["msg"] = "Chit distribution retrieved successfully";
+    $output["data"] = $distribution;
 } else {
     $output["head"]["code"] = 400;
     $output["head"]["msg"] = "Parameter Mismatch";
