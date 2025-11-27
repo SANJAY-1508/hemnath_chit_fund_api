@@ -17,6 +17,8 @@ $output = array();
 date_default_timezone_set('Asia/Calcutta');
 $timestamp = date('Y-m-d H:i:s');
 
+
+
 if (isset($obj->search_text)) {
     $search_text = $obj->search_text;
 
@@ -231,7 +233,7 @@ WHERE `name` LIKE '%$search_text%' GROUP BY
         $output["head"]["code"] = 404;
         $output["head"]["msg"] = "No records found";
     }
-} else if (isset($obj->customer_details) && isset($obj->chit_type) && isset($obj->chit_due_amount) && isset($obj->emi_method) && isset($obj->current_user_id) && isset($obj->customer_id) && isset($obj->chit_type_id) && isset($obj->chit_no)) {
+} else if (isset($obj->customer_details) && isset($obj->chit_type) && isset($obj->chit_due_amount) && isset($obj->emi_method) && isset($obj->current_user_id) && isset($obj->customer_id) && isset($obj->chit_type_id)) {
 
     // Split customer_details into customer_no and name
     $customer_details = explode(' - ', $obj->customer_details);
@@ -253,7 +255,7 @@ WHERE `name` LIKE '%$search_text%' GROUP BY
     $payment_status = 'pending';
     $deleted_at = 0;
     $chit_type = $obj->chit_type;
-    $chit_no = $obj->chit_no;
+    $chit_no = generateChitNo($conn);
 
     // Prepare the statement
 
@@ -760,5 +762,6 @@ WHERE `name` LIKE '%$search_text%' GROUP BY
     $output["head"]["msg"] = "Parameter Mismatch";
     $output["head"]["inputs"] = $obj;
 }
+
 
 echo json_encode($output, JSON_NUMERIC_CHECK);

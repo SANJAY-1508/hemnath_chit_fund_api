@@ -296,3 +296,14 @@ function getUserName($user)
 
     return $result;
 }
+
+function generateChitNo($conn)
+
+{
+    $query = "SELECT MAX(CAST(SUBSTRING(chit_no, 3) AS UNSIGNED)) AS max_num FROM chit WHERE chit_no REGEXP '^CH[0-9]+$'";
+    $result = $conn->query($query);
+    $row = $result->fetch_assoc();
+    $max = $row['max_num'] ? intval($row['max_num']) : 0;
+    $next = $max + 1;
+    return 'A' . str_pad($next, 2, '0', STR_PAD_LEFT);
+}
