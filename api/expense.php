@@ -1,6 +1,7 @@
 <?php
 
-include 'headers.php';
+include 'config/db.php';
+header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -8,7 +9,6 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
-header('Content-Type: application/json; charset=utf-8');
 
 $json = file_get_contents('php://input');
 $obj = json_decode($json);
